@@ -63,7 +63,7 @@ class PageController extends Controller
             ->withErrors($validator)
                 ->withInput();
         }
-        dd('ok');
+        dd('ok'); //debug
     }
 
     /**
