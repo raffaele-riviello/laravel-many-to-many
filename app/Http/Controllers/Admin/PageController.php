@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
+use Illuminate\Support\Facades\Storage;
+use App\Mail\SendNewMail;
+use Illuminate\Support\Facades\Mail;
+
 use App\User;
 use App\Page;
 use App\Category;
@@ -56,15 +60,25 @@ class PageController extends Controller
             'body' => 'required',
             'category_id' => 'required|exists:categories,id',
             'tags' => 'required|array',
-            'photos' => 'required|array',
-            'tags.*' => 'exists:tags,id',
-            'photos.*' => 'exists:photos,id'
+            'tags.*' => 'exists:tags,id'
+            // 'photos' => 'required|array',
+            // 'photos.*' => 'exists:photos,id' //old system with id
         ]);
 
         if ($validator->fails()) {
             return redirect()->route('admin.pages.create')
             ->withErrors($validator)
                 ->withInput();
+        }
+        //photo storage (upload)
+        if (isset($data['photo'])) {
+            $path = Storage::disk('public')->put('images', $data['photo']);
+            $photo = new Photo;
+            $photo->user_id = Auth::id();
+            $photo->name = $data['title'];
+            $photo->path = $path;
+            $photo->description = 'Lorem ipsum';
+            $photo->save();
         }
 
         $page = new Page;
@@ -78,8 +92,11 @@ class PageController extends Controller
         }
 
         $page->tags()->attach($data['tags']);
-        $page->photos()->attach($data['photos']);
+        if(!empty($photo)) {
+            $page->photos()->attach($photo);
+        }
 
+        Mail::to('mail@mail.it')->send(new SendNewMail($page));
         return redirect()->route('admin.pages.show', $page->id);
     }
 
@@ -131,8 +148,36 @@ class PageController extends Controller
             abort('404');
         }
 
-        //validation
+        // if there is a new photo
+        if (isset($data['photo-file'])) {
+            // takes all the photos linked to this page
+            $photosThisPage = $page->photos;
+            // loop on photos
+            foreach($photosThisPage as $photo) {
+                // delete the file from the folder
+                $deleted = Storage::disk('public')->delete($photo->path);
+                // delete the relationship from the database
+                $page->photos()->detach($photo->id);
+                // look for the record in the photos table
+                $photoDb = Photo::find($photo->id);
+                // delete the record from photos table
+                $photoDb->delete();
+            }
 
+            // upload new photo into storage
+            $path = Storage::disk('public')->put('images', $data['photo-file']);
+            // create new record in the database
+            $photo = new Photo;
+            $photo->user_id = Auth::id();
+            $photo->name = $data['title'];
+            $photo->path = $path;
+            $photo->description = 'Lorem ipsum';
+            $saved = $photo->save();
+            // save relationship in bridge table
+            $page->photos()->attach($photo->id);
+        }
+
+        //validation
         $page->fill($data);
         $updated = $page->update();
         if (!$updated) {
@@ -146,7 +191,7 @@ class PageController extends Controller
 
         //synchronize bridge table
         $page->tags()->sync($data['tags']);
-        $page->photos()->sync($data['photos']);
+        // $page->photos()->sync($data['photos']);
 
         return redirect()->route('admin.pages.show', $page->id);
     }

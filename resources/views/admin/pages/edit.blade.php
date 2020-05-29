@@ -6,7 +6,7 @@
             @foreach ($errors->all() as $message)
             {{$message}}
             @endforeach
-            <form action="{{route('admin.pages.update', $page->id)}}" method="POST">
+            <form action="{{route('admin.pages.update', $page->id)}}" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PATCH')
                 <div class="form-group">
@@ -22,7 +22,7 @@
                     <textarea name="body" id="body" cols="30" rows="10" class="form-control">{{old('body') ?? $page->body}}</textarea>
                 </div>
                 <div class="form-group">
-                    <label for="category_id">Categoty</label>
+                    <label for="category_id">Category</label>
                     <select name="category_id" id="category_id">
                         @foreach ($categories as $category)
                         <option value="{{$category->id}}" {{(!empty(old('category_id')) || $category->id == $page->category->id) ? 'selected' : ''}}> {{$category->name}}</option>
@@ -39,10 +39,27 @@
                 </div>
                 <div class="form-group">
                     <h3>Photos</h3>
-                    @foreach ($photos as $photo)
+                    {{-- @foreach ($photos as $photo)
                     <label for="photos-{{$photo->id}}">{{$photo->name}}</label>
                     <input type="checkbox" name="photos[]" id="photos-{{$photo->id}}" value="{{$photo->id}}" {{(!empty(old('photos.'. $key)) ||  $page->photos->contains($photo->id)) ? 'checked' : ''}}>
-                    @endforeach
+                    @endforeach --}}
+                    {{-- in this case we have the possibility to choose only photos already uploaded --}}
+
+                    {{-- @foreach ($photos as $photo)
+                    <div class="card">
+                    <img class="card-img-top"  src="{{asset('storage/'. $photo->path)}}" alt="{{$photo->name}}">
+                    <div class="card-body">
+                        <label for="photos-{{$photo->id}}">{{$photo->name}}</label>
+                        <input type="checkbox" name="photos[]" id="photos-{{$photo->id}}" value="{{$photo->id}}" {{((is_array(old('photos')) && in_array($photo->id, old('photos'))) ||  $page->photos->contains($photo->id)) ? 'checked' : ''}}>
+                    </div>
+                    </div>
+                    @endforeach --}}
+                </div>
+                {{-- Here, however, we only see the related photos and add a new one --}}
+                @foreach ($page->photos as $photo)
+                    <img class="card-img-top" src="{{asset('storage/'. $photo->path)}}" alt="{{$photo->name}}">
+                @endforeach
+                <input type="file" name="photo-file">
                 </div>
                 <input type="submit" value="Save" class="btn btn-primary">
             </form>

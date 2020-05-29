@@ -16,7 +16,8 @@ class InfoUserTableSeeder extends Seeder
      */
     public function run(Faker $faker)
     {
-        $users = User::whereDoesntHave('info')->get();
+        // one to one relationship solution
+        $users = User::DoesntHave('info')->get();
         foreach ($users as $key => $user) {
             $info = new InfoUser;
             $info->user_id = $user->id;
